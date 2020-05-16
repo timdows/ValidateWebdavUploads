@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using WebDav;
@@ -36,9 +37,12 @@ namespace ValidateWebdavUploads
 
             foreach (var file in files)
             {
-                var isUploaded = await CheckIfFileIsUploaded(baseAddress, file.Replace(localShare, string.Empty));
+                //var isUploaded = await CheckIfFileIsUploaded(baseAddress, file.Replace(localShare, string.Empty));
 
-                if (!isUploaded)
+                var size = new System.IO.FileInfo(file).Length;
+                var isUploadedAndSameSize = await CheckIfFileIsUploadedAndSameSize(baseAddress, file.Replace(localShare, string.Empty), size);
+
+                if (!isUploadedAndSameSize)
                 {
                     Console.WriteLine($"MISSING: {file}");
                 }
@@ -55,6 +59,20 @@ namespace ValidateWebdavUploads
             var result = await _client.Propfind(requestUri);
 
             return result.IsSuccessful;
+        }
+
+        static async Task<bool> CheckIfFileIsUploadedAndSameSize(string baseAddress, string filePath, long size)
+        {
+            var requestUri = baseAddress + filePath.Replace("\\", "/");
+            var result = await _client.Propfind(requestUri);
+
+            if (!result.IsSuccessful)
+            {
+                return false;
+            }
+
+            var remoteSize = result.Resources.First().ContentLength;
+            return result.IsSuccessful && size == remoteSize;
         }
     }
 }
